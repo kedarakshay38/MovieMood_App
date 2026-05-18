@@ -1,30 +1,38 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { searchMovies } from "../services/omdbApi";
 import MovieCard from "../components/MovieCard";
+import { useDebounce } from "../hooks/useDebounce";
 function Search() {
   const [query, setQuery] = useState("");
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  async function handleSearch() {
-    setLoading(true);
-    try {
-      const data = await searchMovies(query);
+  const debouncedQuery = useDebounce(query);
 
-      if (data.Response === "False") {
-        setError(data.Error); // e.g., "Movie not found!"
-      } else {
-        setMovies(data.Search);
-      }
-    } catch (e) {
-      setError(e);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setMovies([]);
+      return;
     }
-
-    console.log("Searching for ", query);
-  }
+    async function fetchMovies() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await searchMovies(debouncedQuery);
+        if (data.Response === "False") {
+          setError(data.Error); // e.g., "Movie not found!"
+        } else {
+          setMovies(data.Search);
+        }
+      } catch (e) {
+        setError(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+     fetchMovies();
+  }, [debouncedQuery]);
 
   const inputRef = useRef(null);
   function handleReport() {
@@ -44,12 +52,6 @@ function Search() {
         placeholder="search for movie"
       />
 
-      <button
-        className="px-4 py-2  m-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        onClick={handleSearch}
-      >
-        Submit
-      </button>
       <p>Searching for {query}</p>
 
       <input
